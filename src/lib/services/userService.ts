@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { users, userStocks, stocks } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { currentUser } from '@clerk/nextjs/server';
+import { StockDataService } from './stockDataService';
 
 export interface CreateUserParams {
   clerkId: string;
@@ -12,7 +13,7 @@ export interface CreateUserParams {
 
 export class UserService {
   /**
-   * Create or get user from Clerk data
+   * Create or get user from Clerk data and trigger intraday data update if needed
    */
   static async createOrGetUser(userData: CreateUserParams) {
     try {
@@ -23,6 +24,7 @@ export class UserService {
         .where(eq(users.clerkId, userData.clerkId))
         .limit(1);
 
+      let user;
       if (existingUser.length > 0) {
         // Update last login
         const updatedUser = await db
@@ -31,21 +33,35 @@ export class UserService {
           .where(eq(users.clerkId, userData.clerkId))
           .returning();
         
-        return updatedUser[0];
+        user = updatedUser[0];
+      } else {
+        // Create new user
+        const newUser = await db
+          .insert(users)
+          .values({
+            clerkId: userData.clerkId,
+            email: userData.email,
+            username: userData.username,
+            lastLogin: new Date(),
+          })
+          .returning();
+        
+        user = newUser[0];
       }
 
-      // Create new user
-      const newUser = await db
-        .insert(users)
-        .values({
-          clerkId: userData.clerkId,
-          email: userData.email,
-          username: userData.username,
-          lastLogin: new Date(),
+      // Check and update intraday data if needed (async, don't wait for completion)
+      // This runs in the background to avoid blocking user login
+      StockDataService.updateAllIntradayDataIfNeeded()
+        .then(result => {
+          if (result.updated && result.count) {
+            console.log(`Background update: ${result.message}`);
+          }
         })
-        .returning();
+        .catch(error => {
+          console.error('Background intraday data update failed:', error);
+        });
 
-      return newUser[0];
+      return user;
     } catch (error) {
       console.error('Error creating or getting user:', error);
       throw new Error('Failed to create or get user');

@@ -193,6 +193,46 @@ export class StockDataService {
   }
   
   /**
+   * Check if intraday data update is needed based on IST market hours.
+   * Updates should happen at 9:00 AM (market open) and 3:45 PM (near market close).
+   * Only updates on trading days (Monday-Friday).
+   */
+  static isIntradayUpdateNeeded(lastUpdated: Date): boolean {
+    const now = new Date();
+    
+    // Convert to IST
+    const nowIST = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const lastUpdatedIST = new Date(lastUpdated.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    
+    // Check if today is a trading day (Monday = 1, Friday = 5, Saturday = 6, Sunday = 0)
+    const dayOfWeek = nowIST.getDay();
+    const isTradingDay = dayOfWeek >= 1 && dayOfWeek <= 5;
+    
+    if (!isTradingDay) {
+      return false; // No updates on weekends
+    }
+    
+    // Get today's date in IST
+    const today = nowIST.toISOString().split('T')[0];
+    
+    // Create update times for today in IST
+    const nineAM = new Date(`${today}T09:00:00.000+05:30`);
+    const threeFortyFivePM = new Date(`${today}T15:45:00.000+05:30`);
+    
+    // Check if current time is past 9:00 AM and data wasn't updated after 9:00 AM today
+    if (nowIST >= nineAM && lastUpdatedIST < nineAM) {
+      return true;
+    }
+    
+    // Check if current time is past 3:45 PM and data wasn't updated after 3:45 PM today
+    if (nowIST >= threeFortyFivePM && lastUpdatedIST < threeFortyFivePM) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
    * Upsert intraday price data
    */
   private static async upsertIntraDayPrice(stockId: number, quote: YahooQuoteData) {
@@ -474,6 +514,82 @@ export class StockDataService {
     } catch (error) {
       console.error('Error fetching stock by symbol:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get the oldest intraday data update time across all stocks
+   */
+  static async getOldestIntradayUpdateTime(): Promise<Date | null> {
+    try {
+      const result = await db
+        .select({ updatedAt: stockIntraDayPrice.updatedAt })
+        .from(stockIntraDayPrice)
+        .orderBy(stockIntraDayPrice.updatedAt)
+        .limit(1);
+      
+      return result.length > 0 ? result[0].updatedAt : null;
+    } catch (error) {
+      console.error('Error getting oldest intraday update time:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update intraday data for all active stocks if needed
+   */
+  static async updateAllIntradayDataIfNeeded(): Promise<{ updated: boolean; message: string; count?: number }> {
+    try {
+      // Get the oldest update time to determine if any update is needed
+      const oldestUpdate = await this.getOldestIntradayUpdateTime();
+      
+      if (!oldestUpdate || !this.isIntradayUpdateNeeded(oldestUpdate)) {
+        return {
+          updated: false,
+          message: 'Intraday data is up to date'
+        };
+      }
+
+      // Get all active stocks
+      const activeStocks = await db
+        .select()
+        .from(stocks)
+        .where(eq(stocks.isActive, true));
+
+      if (activeStocks.length === 0) {
+        return {
+          updated: false,
+          message: 'No active stocks found'
+        };
+      }
+
+      let updatedCount = 0;
+      const updatePromises = activeStocks.map(async (stock) => {
+        try {
+          const result = await this.updateRealTimePriceOnly(stock.symbol);
+          if (result.success) {
+            updatedCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to update ${stock.symbol}:`, error);
+        }
+      });
+
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+
+      return {
+        updated: true,
+        message: `Updated intraday data for ${updatedCount} stocks`,
+        count: updatedCount
+      };
+
+    } catch (error) {
+      console.error('Error updating all intraday data:', error);
+      return {
+        updated: false,
+        message: `Error updating intraday data: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
     }
   }
 }
