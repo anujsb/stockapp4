@@ -1,4 +1,3 @@
-// src/app/api/stocks/[symbol]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { StockDataService } from '@/lib/services/stockDataService';
 import { UserService } from '@/lib/services/userService';
@@ -17,61 +16,10 @@ function convertBigIntToString(obj: any): any {
   return obj;
 }
 
-// GET /api/stocks/[symbol] - Fetch and store stock data
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { symbol: string } }
-) {
-  try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const symbol = normalizeStockSymbol(params.symbol);
-
-    // Validate symbol format for Indian stocks
-    if (!isValidStockSymbol(symbol)) {
-      return NextResponse.json(
-        { error: 'Invalid Indian stock symbol format (must be e.g. RELIANCE.NS or SBIN.BO)' },
-        { status: 400 }
-      );
-    }
-
-    // Fetch and store stock data
-    const result = await StockDataService.createOrUpdateStockData(symbol);
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.message },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(convertBigIntToString({
-      success: true,
-      message: result.message,
-      stockId: result.stockId,
-      data: result.data
-    }));
-
-  } catch (error) {
-    console.error('Error in GET /api/stocks/[symbol]:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
 // POST /api/stocks/[symbol] - Add stock to user portfolio
 export async function POST(
   request: NextRequest,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -83,7 +31,10 @@ export async function POST(
       );
     }
 
-    const symbol = normalizeStockSymbol(params.symbol);
+    // Await params before accessing properties
+    const { symbol: rawSymbol } = await params;
+    
+    const symbol = normalizeStockSymbol(rawSymbol);
     // Validate symbol format for Indian stocks
     if (!isValidStockSymbol(symbol)) {
       return NextResponse.json(
@@ -145,6 +96,60 @@ export async function POST(
 
   } catch (error) {
     console.error('Error in POST /api/stocks/[symbol]:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// GET /api/stocks/[symbol] - Fetch and store stock data
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ symbol: string }> }
+) {
+  try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Await params before accessing properties
+    const { symbol: rawSymbol } = await params;
+
+    const symbol = normalizeStockSymbol(rawSymbol);
+
+    // Validate symbol format for Indian stocks
+    if (!isValidStockSymbol(symbol)) {
+      return NextResponse.json(
+        { error: 'Invalid Indian stock symbol format (must be e.g. RELIANCE.NS or SBIN.BO)' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch and store stock data
+    const result = await StockDataService.createOrUpdateStockData(symbol);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.message },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(convertBigIntToString({
+      success: true,
+      message: result.message,
+      stockId: result.stockId,
+      data: result.data
+    }));
+
+  } catch (error) {
+    console.error('Error in GET /api/stocks/[symbol]:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

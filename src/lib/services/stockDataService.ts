@@ -104,7 +104,7 @@ export class StockDataService {
       };
 
       // Insert/Update real-time price data
-      if (quote.regularMarketPrice && quote.regularMarketVolume) {
+      if (quote.regularMarketPrice !== undefined) {
         const realTimePriceData = await this.upsertRealTimePrice(stockId, quote);
         result.data!.realTimePrice = realTimePriceData;
       }
@@ -167,28 +167,41 @@ export class StockDataService {
         signal: null, // You can add logic to determine signals
         updatedAt: new Date(),
       };
-
-      return await db.insert(stockRealTimePrice).values(data).returning();
+  
+      // Check if real-time price data already exists for this stock
+      const existing = await db
+        .select()
+        .from(stockRealTimePrice)
+        .where(eq(stockRealTimePrice.stockId, stockId))
+        .limit(1);
+  
+      if (existing.length > 0) {
+        // Update existing record
+        return await db
+          .update(stockRealTimePrice)
+          .set(data)
+          .where(eq(stockRealTimePrice.id, existing[0].id))
+          .returning();
+      } else {
+        // Insert new record
+        return await db.insert(stockRealTimePrice).values(data).returning();
+      }
     } catch (error) {
       console.error('Error upserting real-time price:', error);
       return null;
     }
   }
-
+  
   /**
    * Upsert intraday price data
    */
   private static async upsertIntraDayPrice(stockId: number, quote: YahooQuoteData) {
     try {
-      // Check if data exists for today
-      const today = new Date().toISOString().split('T')[0];
+      // Check if data already exists for this stock (one record per stock)
       const existing = await db
         .select()
         .from(stockIntraDayPrice)
-        .where(and(
-          eq(stockIntraDayPrice.stockId, stockId),
-          eq(stockIntraDayPrice.updatedAt, new Date(today))
-        ))
+        .where(eq(stockIntraDayPrice.stockId, stockId))
         .limit(1);
 
       const data = {
@@ -382,6 +395,69 @@ export class StockDataService {
     } catch (error) {
       console.error('Error upserting analyst rating:', error);
       return null;
+    }
+  }
+
+  /**
+   * Optimized method to update only real-time price data (faster for bulk updates)
+   */
+  static async updateRealTimePriceOnly(symbol: string): Promise<StockCreationResult> {
+    try {
+      symbol = normalizeStockSymbol(symbol);
+      
+      // Only fetch quote data (no modules) for faster response
+      const quote = await YahooFinanceService.getQuote(symbol);
+      
+      if (!quote || !quote.regularMarketPrice) {
+        return {
+          success: false,
+          message: `Unable to fetch valid price data for symbol: ${symbol}`
+        };
+      }
+
+      // Find stock in database
+      const existingStock = await db
+        .select()
+        .from(stocks)
+        .where(eq(stocks.symbol, symbol))
+        .limit(1);
+
+      if (existingStock.length === 0) {
+        return {
+          success: false,
+          message: `Stock ${symbol} not found in database. Please add it first.`
+        };
+      }
+
+      const stockId = existingStock[0].id;
+      
+      // Update only real-time price and basic intraday data
+      const realTimePriceData = await this.upsertRealTimePrice(stockId, quote);
+      const intraDayPriceData = await this.upsertIntraDayPrice(stockId, quote);
+      
+      // Update stock's last refreshed timestamp
+      await db
+        .update(stocks)
+        .set({ lastRefreshedAt: new Date() })
+        .where(eq(stocks.id, stockId));
+
+      return {
+        success: true,
+        stockId,
+        message: `Successfully updated real-time price for ${symbol}`,
+        data: { 
+          stock: existingStock[0],
+          realTimePrice: realTimePriceData,
+          intraDayPrice: intraDayPriceData
+        }
+      };
+
+    } catch (error) {
+      console.error(`Error updating real-time price for ${symbol}:`, error);
+      return {
+        success: false,
+        message: `Error updating real-time price: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
     }
   }
 

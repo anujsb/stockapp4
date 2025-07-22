@@ -1,7 +1,7 @@
 // src/lib/services/userService.ts
 import { db } from '@/lib/db';
 import { users, userStocks, stocks } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { currentUser } from '@clerk/nextjs/server';
 
 export interface CreateUserParams {
@@ -96,7 +96,10 @@ export class UserService {
       const existingUserStock = await db
         .select()
         .from(userStocks)
-        .where(eq(userStocks.userId, userId) && eq(userStocks.stockId, stockId))
+        .where(and(
+          eq(userStocks.userId, userId),
+          eq(userStocks.stockId, stockId)
+        ))
         .limit(1);
 
       if (existingUserStock.length > 0) {
@@ -168,7 +171,10 @@ export class UserService {
     try {
       return await db
         .delete(userStocks)
-        .where(eq(userStocks.userId, userId) && eq(userStocks.stockId, stockId))
+        .where(and(
+          eq(userStocks.userId, userId),
+          eq(userStocks.stockId, stockId)
+        ))
         .returning();
     } catch (error) {
       console.error('Error removing stock from portfolio:', error);
