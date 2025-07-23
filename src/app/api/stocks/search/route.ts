@@ -31,14 +31,14 @@ export async function GET(request: NextRequest) {
 
     const searchTerm = query.trim();
     
-    // Search in the database first (by symbol or name)
+    // Search in the database first (by symbol or name), only for Indian exchanges
     const dbResults = await db
       .select()
       .from(stocks)
       .where(
         like(stocks.name, `%${searchTerm}%`)
       )
-      .limit(10);
+      .limit(20);
 
     // Also search by symbol
     const symbolResults = await db
@@ -47,11 +47,12 @@ export async function GET(request: NextRequest) {
       .where(
         like(stocks.symbol, `%${searchTerm.toUpperCase()}%`)
       )
-      .limit(5);
+      .limit(10);
 
-    // Combine and format database results
+    // Combine and filter for Indian exchanges only
     const combinedDbResults = [...dbResults, ...symbolResults]
-      .filter((stock, index, self) => 
+      .filter((stock, index, self) =>
+        (stock.exchange === 'NSE' || stock.exchange === 'BSE') &&
         index === self.findIndex(s => s.id === stock.id)
       )
       .slice(0, 10)
@@ -59,11 +60,11 @@ export async function GET(request: NextRequest) {
         symbol: stock.symbol,
         name: stock.name || stock.symbol,
         type: 'Equity',
-        region: stock.exchange === 'NSE' || stock.exchange === 'BSE' ? 'India' : 'Unknown',
-        marketOpen: stock.exchange === 'NSE' || stock.exchange === 'BSE' ? '09:15' : '09:30',
-        marketClose: stock.exchange === 'NSE' || stock.exchange === 'BSE' ? '15:30' : '16:00',
-        timezone: stock.exchange === 'NSE' || stock.exchange === 'BSE' ? 'Asia/Kolkata' : 'US/Eastern',
-        currency: stock.currency || 'INR',
+        region: 'India',
+        marketOpen: '09:15',
+        marketClose: '15:30',
+        timezone: 'Asia/Kolkata',
+        currency: 'INR',
         exchange: stock.exchange,
         sector: stock.sector,
         industry: stock.industry,
@@ -78,27 +79,30 @@ export async function GET(request: NextRequest) {
     // If not found in DB, search Yahoo Finance
     try {
       const yahooResults = await YahooFinanceService.searchStocks(searchTerm);
-      
+      // Filter for Indian stocks only (NSE/BSE or region IN)
+      const filteredYahooResults = yahooResults.filter(result => {
+        const ex = result.exchange?.toUpperCase();
+        const region = result.region?.toUpperCase();
+        return ex === 'NSE' || ex === 'BSE' || region === 'IN';
+      });
       // Format Yahoo results to match our interface
-      const formattedYahooResults = yahooResults.slice(0, 10).map(result => ({
+      const formattedYahooResults = filteredYahooResults.slice(0, 10).map(result => ({
         symbol: result.symbol,
         name: result.shortname || result.longname || result.symbol,
         type: result.quoteType || 'Equity',
-        region: result.region || 'Unknown',
-        marketOpen: '09:30',
-        marketClose: '16:00', 
-        timezone: 'US/Eastern',
-        currency: result.currency || 'USD',
+        region: 'India',
+        marketOpen: '09:15',
+        marketClose: '15:30',
+        timezone: 'Asia/Kolkata',
+        currency: 'INR',
         exchange: result.exchange,
         sector: result.sector,
         industry: result.industry,
         source: 'yahoo' as const
       }));
-
       return NextResponse.json(formattedYahooResults);
     } catch (yahooError) {
       console.error('Yahoo Finance search failed:', yahooError);
-      
       // Return empty array if both database and Yahoo searches fail
       return NextResponse.json([]);
     }
