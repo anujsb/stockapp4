@@ -4,13 +4,17 @@ import { UserService } from '@/lib/services/userService';
 import { auth } from '@clerk/nextjs/server';
 import { normalizeStockSymbol, isValidStockSymbol } from '@/lib/utils/stockUtils';
 
-// Helper to convert BigInt to string recursively
+// Helper to convert BigInt and Date to string recursively
 function convertBigIntToString(obj: any): any {
   if (Array.isArray(obj)) {
     return obj.map(convertBigIntToString);
   } else if (obj && typeof obj === 'object') {
     return Object.fromEntries(
-      Object.entries(obj).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : convertBigIntToString(v)])
+      Object.entries(obj).map(([k, v]) => {
+        if (typeof v === 'bigint') return [k, v.toString()];
+        if (v instanceof Date) return [k, v.toISOString()];
+        return [k, convertBigIntToString(v)];
+      })
     );
   }
   return obj;
