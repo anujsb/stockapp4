@@ -2,12 +2,12 @@
 import React, { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import { 
-  IconHome2, 
-  IconChartBar, 
-  IconEye, 
-  IconNews, 
-  IconPlus, 
+import {
+  IconHome2,
+  IconChartBar,
+  IconEye,
+  IconNews,
+  IconPlus,
   IconSearch,
   IconSettings,
   IconBell
@@ -86,21 +86,31 @@ export function SideBar() {
           </div>
           <div>
 
-            <div className="">
+            <div className="flex flex-col items-center space-y-2">
               <SignedIn>
-                <div className="hidden sm:flex items-center space-x-2 text-sm">
-                  {updateManager.status.realTime.isActive ? (
-                    <div className="flex items-center space-x-1 text-green-600">
-                      <Activity className="h-4 w-4" />
-                      <span>Live</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-1 text-gray-400">
-                      <Clock className="h-4 w-4" />
-                      <span>Offline</span>
-                    </div>
-                  )}
-                </div>
+                {open ? (
+                  <div className="hidden sm:flex items-center space-x-2 text-sm">
+                    {updateManager.status.realTime.isActive ? (
+                      <div className="flex items-center space-x-1 text-green-600">
+                        <Activity className="h-4 w-4" />
+                        <span>Live</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1 text-gray-400">
+                        <Clock className="h-4 w-4" />
+                        <span>Offline</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="hidden sm:flex items-center">
+                    {updateManager.status.realTime.isActive ? (
+                      <Activity className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Clock className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
+                )}
                 <UserButton
                   appearance={{
                     elements: {
