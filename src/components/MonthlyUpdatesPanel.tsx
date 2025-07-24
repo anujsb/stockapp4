@@ -121,15 +121,11 @@ export const MonthlyUpdatesPanel: React.FC = () => {
     status,
     isAnyLoading,
     hasAnyError,
-    updateFundamentalData,
-    updateFinancialData,
-    updateStatistics,
-    updateAnalystRatings,
     updateAllMonthlyData,
   } = useMonthlyUpdates();
 
   const handleUpdateAll = async () => {
-    console.log('Triggering all monthly updates...');
+    console.log('Triggering consolidated monthly updates...');
     await updateAllMonthlyData();
   };
 
@@ -179,7 +175,7 @@ export const MonthlyUpdatesPanel: React.FC = () => {
           isLoading={status.fundamentalData.isLoading}
           lastResult={status.fundamentalData.lastResult}
           error={status.fundamentalData.error}
-          onUpdate={updateFundamentalData}
+          onUpdate={() => Promise.resolve(null)}
           icon={<div className="w-4 h-4 bg-blue-500 rounded" />}
         />
         
@@ -188,7 +184,7 @@ export const MonthlyUpdatesPanel: React.FC = () => {
           isLoading={status.financialData.isLoading}
           lastResult={status.financialData.lastResult}
           error={status.financialData.error}
-          onUpdate={updateFinancialData}
+          onUpdate={() => Promise.resolve(null)}
           icon={<div className="w-4 h-4 bg-green-500 rounded" />}
         />
         
@@ -197,7 +193,7 @@ export const MonthlyUpdatesPanel: React.FC = () => {
           isLoading={status.statistics.isLoading}
           lastResult={status.statistics.lastResult}
           error={status.statistics.error}
-          onUpdate={updateStatistics}
+          onUpdate={() => Promise.resolve(null)}
           icon={<div className="w-4 h-4 bg-purple-500 rounded" />}
         />
         
@@ -206,7 +202,7 @@ export const MonthlyUpdatesPanel: React.FC = () => {
           isLoading={status.analystRatings.isLoading}
           lastResult={status.analystRatings.lastResult}
           error={status.analystRatings.error}
-          onUpdate={updateAnalystRatings}
+          onUpdate={() => Promise.resolve(null)}
           icon={<div className="w-4 h-4 bg-orange-500 rounded" />}
         />
       </div>
@@ -221,21 +217,13 @@ export const MonthlyUpdatesPanel: React.FC = () => {
               Configure these endpoints in your cron-job.org dashboard to run monthly:
             </div>
             
-            <div className="bg-gray-50 p-4 rounded-md space-y-3">
+            <div className="bg-gray-50 p-4 rounded-md space-y-4">
               <div className="space-y-2">
-                <div className="font-medium text-sm">API Endpoints:</div>
-                <div className="text-xs font-mono space-y-1">
-                  <div className="bg-white p-2 rounded border">
-                    POST {window.location.origin}/api/stocks/update-fundamental-data
-                  </div>
-                  <div className="bg-white p-2 rounded border">
-                    POST {window.location.origin}/api/stocks/update-financial-data
-                  </div>
-                  <div className="bg-white p-2 rounded border">
-                    POST {window.location.origin}/api/stocks/update-statistics
-                  </div>
-                  <div className="bg-white p-2 rounded border">
-                    POST {window.location.origin}/api/stocks/update-analyst-ratings
+                <div className="font-medium text-sm text-green-700">🎯 Consolidated Monthly Update Endpoint</div>
+                <div className="text-xs font-mono">
+                  <div className="bg-green-50 p-3 rounded border border-green-200">
+                    <div className="font-medium text-green-800 mb-1">POST {window.location.origin}/api/stocks/update-monthly-data</div>
+                    <div className="text-green-600 text-xs">✓ Updates all data types (fundamental, financial, statistics, analyst ratings) in one call with proper delays</div>
                   </div>
                 </div>
               </div>
@@ -243,9 +231,22 @@ export const MonthlyUpdatesPanel: React.FC = () => {
               <div className="space-y-2">
                 <div className="font-medium text-sm">Recommended Schedule:</div>
                 <div className="text-xs text-gray-600">
-                  • Monthly (e.g., 1st of each month at 2:00 AM)
-                  • Stagger the calls by 15-30 minutes to avoid API rate limits
-                  • Use POST method with no body required
+                  <div>
+                    • <strong>Frequency:</strong> Monthly (e.g., 1st of each month at 2:00 AM)
+                    <br />• <strong>Method:</strong> POST with no body required
+                    <br />• <strong>Timeout:</strong> 300 seconds (5 minutes) or higher
+                    <br />• <strong>Benefits:</strong> Single cron job with built-in API rate limiting and error handling
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="font-medium text-sm">What it updates:</div>
+                <div className="text-xs text-gray-600 grid grid-cols-2 gap-2">
+                  <div>• EPS, PE ratios, book value</div>
+                  <div>• Revenue, debt, margins, growth</div>
+                  <div>• Institutional holdings, dividends</div>
+                  <div>• Analyst ratings, target prices</div>
                 </div>
               </div>
             </div>

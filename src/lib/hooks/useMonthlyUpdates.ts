@@ -59,237 +59,76 @@ export const useMonthlyUpdates = () => {
     }
   });
 
-  // Update fundamental data
-  const updateFundamentalData = useCallback(async (): Promise<MonthlyUpdateResult | null> => {
-    setStatus(prev => ({
-      ...prev,
-      fundamentalData: {
-        ...prev.fundamentalData,
-        isLoading: true,
-        error: null
-      }
-    }));
 
-    try {
-      const response = await fetch('/api/stocks/update-fundamental-data', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update fundamental data');
-      }
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Update failed');
-      }
-
-      const result = data.result;
-      
-      setStatus(prev => ({
-        ...prev,
-        fundamentalData: {
-          isLoading: false,
-          lastResult: result,
-          error: null
-        }
-      }));
-
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setStatus(prev => ({
-        ...prev,
-        fundamentalData: {
-          ...prev.fundamentalData,
-          isLoading: false,
-          error: errorMessage
-        }
-      }));
-      return null;
-    }
-  }, []);
-
-  // Update financial data
-  const updateFinancialData = useCallback(async (): Promise<MonthlyUpdateResult | null> => {
-    setStatus(prev => ({
-      ...prev,
-      financialData: {
-        ...prev.financialData,
-        isLoading: true,
-        error: null
-      }
-    }));
-
-    try {
-      const response = await fetch('/api/stocks/update-financial-data', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update financial data');
-      }
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Update failed');
-      }
-
-      const result = data.result;
-      
-      setStatus(prev => ({
-        ...prev,
-        financialData: {
-          isLoading: false,
-          lastResult: result,
-          error: null
-        }
-      }));
-
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setStatus(prev => ({
-        ...prev,
-        financialData: {
-          ...prev.financialData,
-          isLoading: false,
-          error: errorMessage
-        }
-      }));
-      return null;
-    }
-  }, []);
-
-  // Update statistics data
-  const updateStatistics = useCallback(async (): Promise<MonthlyUpdateResult | null> => {
-    setStatus(prev => ({
-      ...prev,
-      statistics: {
-        ...prev.statistics,
-        isLoading: true,
-        error: null
-      }
-    }));
-
-    try {
-      const response = await fetch('/api/stocks/update-statistics', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update statistics data');
-      }
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Update failed');
-      }
-
-      const result = data.result;
-      
-      setStatus(prev => ({
-        ...prev,
-        statistics: {
-          isLoading: false,
-          lastResult: result,
-          error: null
-        }
-      }));
-
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setStatus(prev => ({
-        ...prev,
-        statistics: {
-          ...prev.statistics,
-          isLoading: false,
-          error: errorMessage
-        }
-      }));
-      return null;
-    }
-  }, []);
-
-  // Update analyst ratings
-  const updateAnalystRatings = useCallback(async (): Promise<MonthlyUpdateResult | null> => {
-    setStatus(prev => ({
-      ...prev,
-      analystRatings: {
-        ...prev.analystRatings,
-        isLoading: true,
-        error: null
-      }
-    }));
-
-    try {
-      const response = await fetch('/api/stocks/update-analyst-ratings', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update analyst ratings');
-      }
-
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Update failed');
-      }
-
-      const result = data.result;
-      
-      setStatus(prev => ({
-        ...prev,
-        analystRatings: {
-          isLoading: false,
-          lastResult: result,
-          error: null
-        }
-      }));
-
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setStatus(prev => ({
-        ...prev,
-        analystRatings: {
-          ...prev.analystRatings,
-          isLoading: false,
-          error: errorMessage
-        }
-      }));
-      return null;
-    }
-  }, []);
-
-  // Update all monthly data
-  const updateAllMonthlyData = useCallback(async (): Promise<{
-    fundamentalData: MonthlyUpdateResult | null;
-    financialData: MonthlyUpdateResult | null;
-    statistics: MonthlyUpdateResult | null;
-    analystRatings: MonthlyUpdateResult | null;
-  }> => {
-    console.log('Starting all monthly data updates...');
+  // Update all monthly data using consolidated endpoint
+  const updateAllMonthlyDataConsolidated = useCallback(async (): Promise<any> => {
+    console.log('Starting consolidated monthly data update...');
     
-    const results = await Promise.allSettled([
-      updateFundamentalData(),
-      updateFinancialData(),
-      updateStatistics(),
-      updateAnalystRatings()
-    ]);
+    // Set all updates to loading state
+    setStatus(prev => ({
+      fundamentalData: { ...prev.fundamentalData, isLoading: true, error: null },
+      financialData: { ...prev.financialData, isLoading: true, error: null },
+      statistics: { ...prev.statistics, isLoading: true, error: null },
+      analystRatings: { ...prev.analystRatings, isLoading: true, error: null }
+    }));
 
-    return {
-      fundamentalData: results[0].status === 'fulfilled' ? results[0].value : null,
-      financialData: results[1].status === 'fulfilled' ? results[1].value : null,
-      statistics: results[2].status === 'fulfilled' ? results[2].value : null,
-      analystRatings: results[3].status === 'fulfilled' ? results[3].value : null,
-    };
-  }, [updateFundamentalData, updateFinancialData, updateStatistics, updateAnalystRatings]);
+    try {
+      const response = await fetch('/api/stocks/update-monthly-data', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update monthly data');
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Update failed');
+      }
+
+      const results = data.results;
+      
+      // Update all states with results
+      setStatus(prev => ({
+        fundamentalData: {
+          isLoading: false,
+          lastResult: results.fundamentalData,
+          error: null
+        },
+        financialData: {
+          isLoading: false,
+          lastResult: results.financialData,
+          error: null
+        },
+        statistics: {
+          isLoading: false,
+          lastResult: results.statistics,
+          error: null
+        },
+        analystRatings: {
+          isLoading: false,
+          lastResult: results.analystRatings,
+          error: null
+        }
+      }));
+
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      
+      // Set all states to error
+      setStatus(prev => ({
+        fundamentalData: { ...prev.fundamentalData, isLoading: false, error: errorMessage },
+        financialData: { ...prev.financialData, isLoading: false, error: errorMessage },
+        statistics: { ...prev.statistics, isLoading: false, error: errorMessage },
+        analystRatings: { ...prev.analystRatings, isLoading: false, error: errorMessage }
+      }));
+      
+      return null;
+    }
+  }, []);
+
 
   // Get overall loading state
   const isAnyLoading = 
@@ -309,10 +148,7 @@ export const useMonthlyUpdates = () => {
     status,
     isAnyLoading,
     hasAnyError,
-    updateFundamentalData,
-    updateFinancialData,
-    updateStatistics,
-    updateAnalystRatings,
-    updateAllMonthlyData,
+    updateAllMonthlyData: updateAllMonthlyDataConsolidated,
+    updateAllMonthlyDataConsolidated,
   };
 };
