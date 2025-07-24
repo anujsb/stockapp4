@@ -78,8 +78,8 @@ export default function DashboardPage() {
             </div>
             <p className="text-xs text-gray-500">
               {updateManager.status.realTime.isActive 
-                ? 'Updating every minute'
-                : 'Updates paused'
+                ? 'Updating every minute during market hours (9AM-3:45PM IST)'
+                : 'Single update only (market closed or weekends)'
               }
             </p>
           </CardContent>

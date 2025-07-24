@@ -78,30 +78,37 @@ export const useRealTimeUpdates = () => {
     }
   }, []);
 
-  // Start real-time updates
-  const startRealTimeUpdates = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+  // Check if real-time update is needed based on IST market hours.
+  // Updates should happen between 9:00 AM and 3:45 PM IST.
+  const isRealTimeUpdateNeeded = useCallback(() => {
+    const now = new Date();
+
+    // Convert to IST
+    const nowIST = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+
+    // Check if today is a trading day (Monday = 1, Friday = 5, Saturday = 6, Sunday = 0)
+    const dayOfWeek = nowIST.getDay();
+    const isTradingDay = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+    if (!isTradingDay) {
+      console.log('Not a trading day, skipping continuous updates');
+      return false;
     }
 
-    // Immediate update
-    updateRealTimePrices();
+    // Get today's date in IST
+    const today = nowIST.toISOString().split('T')[0];
 
-    // Set up interval for every minute (60000ms)
-    intervalRef.current = setInterval(() => {
-      if (isUserActiveRef.current) {
-        updateRealTimePrices();
-      }
-    }, 60000);
+    // Create market times for today in IST
+    const marketOpen = new Date(`${today}T09:00:00.000+05:30`);
+    const marketClose = new Date(`${today}T15:45:00.000+05:30`);
 
-    setStatus(prev => ({
-      ...prev,
-      isActive: true,
-      nextUpdate: new Date(Date.now() + 60000).toISOString()
-    }));
-
-    console.log('Real-time updates started');
-  }, [updateRealTimePrices]);
+    const isWithinHours = nowIST >= marketOpen && nowIST <= marketClose;
+    
+    console.log(`Market hours check: ${nowIST.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}, Trading day: ${isTradingDay}, Within hours: ${isWithinHours}`);
+    
+    // Check if within market hours
+    return isWithinHours;
+  }, []);
 
   // Stop real-time updates
   const stopRealTimeUpdates = useCallback(() => {
@@ -118,6 +125,43 @@ export const useRealTimeUpdates = () => {
 
     console.log('Real-time updates stopped');
   }, []);
+
+  // Start real-time updates
+  const startRealTimeUpdates = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    if (isRealTimeUpdateNeeded()) {
+      // Immediate update
+      updateRealTimePrices();
+
+      // Set up interval for every minute (60000ms)
+      intervalRef.current = setInterval(() => {
+        if (isUserActiveRef.current) {
+          // Check if still within market hours before updating
+          if (isRealTimeUpdateNeeded()) {
+            updateRealTimePrices();
+          } else {
+            console.log('Market closed, stopping real-time updates');
+            stopRealTimeUpdates();
+          }
+        }
+      }, 60000);
+
+      console.log('Real-time updates started during market hours');
+    } else {
+      // Market closed - single update only
+      updateRealTimePrices();
+      console.log('Single real-time update outside market hours');
+    }
+
+    setStatus(prev => ({
+      ...prev,
+      isActive: isRealTimeUpdateNeeded(),
+      nextUpdate: isRealTimeUpdateNeeded() ? new Date(Date.now() + 60000).toISOString() : null
+    }));
+  }, [updateRealTimePrices, isRealTimeUpdateNeeded, stopRealTimeUpdates]);
 
   // Set up activity listeners and auto-start on mount
   useEffect(() => {
