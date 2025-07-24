@@ -16,6 +16,7 @@ import {
   Zap
 } from 'lucide-react';
 import Link from 'next/link';
+import { SideBar } from '@/components/SideBar';
 
 // Helper function to format dates
 function formatDateTime(dateString: string | null) {
@@ -45,7 +46,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="flex h-screen overflow-hidden">
+      <SideBar />
+      <div className="flex-1 overflow-y-auto min-h-screen bg-gray-50 p-6">
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -311,6 +314,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

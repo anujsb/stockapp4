@@ -2,11 +2,23 @@
 import React, { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
-import { IconHome2, IconChartBar, IconEye, IconNews, IconPlus } from "@tabler/icons-react";
+import { 
+  IconHome2, 
+  IconChartBar, 
+  IconEye, 
+  IconNews, 
+  IconPlus, 
+  IconSearch,
+  IconSettings,
+  IconBell
+} from "@tabler/icons-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { SignedIn, UserButton } from "@clerk/nextjs";
+import { Activity, Clock } from "lucide-react";
+import { useUpdateManager } from "@/lib/hooks/useUpdateManager";
+
 
 export function SideBar() {
   const links = [
@@ -16,15 +28,15 @@ export function SideBar() {
       icon: <IconHome2 className="h-5 w-5 flex-shrink-0" aria-hidden="true" />,
     },
     {
+      label: "Search Stocks",
+      href: "/stocks",
+      icon: <IconSearch className="h-5 w-5 flex-shrink-0" aria-hidden="true" />,
+    },
+    {
       label: "Portfolio",
       href: "/portfolio",
       icon: <IconChartBar className="h-5 w-5 flex-shrink-0" aria-hidden="true" />,
     },
-    // {
-    //   label: "Add Stock",
-    //   href: "/portfolio",
-    //   icon: <IconPlus className="h-5 w-5 flex-shrink-0" aria-hidden="true" />,
-    // },
     {
       label: "Watchlist",
       href: "/watchlist",
@@ -38,12 +50,19 @@ export function SideBar() {
     {
       label: "Recommendations",
       href: "/recommendations",
-      icon: <IconNews className="h-5 w-5 flex-shrink-0" aria-hidden="true" />,
+      icon: <IconBell className="h-5 w-5 flex-shrink-0" aria-hidden="true" />,
+    },
+    {
+      label: "Settings",
+      href: "/settings",
+      icon: <IconSettings className="h-5 w-5 flex-shrink-0" aria-hidden="true" />,
     },
   ];
 
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+
+  const updateManager = useUpdateManager();
 
   return (
     <div>
@@ -57,8 +76,8 @@ export function SideBar() {
                   key={idx}
                   link={link}
                   className={`${pathname === link.href
-                      ? "bg-secondary px-1 rounded-lg"
-                      : "bg-transparent px-1 rounded-lg"
+                    ? "bg-secondary px-1 rounded-lg"
+                    : "bg-transparent px-1 rounded-lg"
                     }`}
                   aria-current={pathname === link.href ? "page" : undefined}
                 />
@@ -66,27 +85,30 @@ export function SideBar() {
             </nav>
           </div>
           <div>
-            {/* <SidebarLink
-              link={{
-                label: "21bubbles",
-                href: "https://21bubbles.com/",
-                icon: (
-                  <Image
-                    src="/favicon.ico"
-                    className="h-7 w-7 flex-shrink-0 rounded-full"
-                    width={50}
-                    height={50}
-                    alt="21bubbles logo"
-                    aria-hidden="true"
-                  />
-                ),
-              }}
-              aria-label="Visit 21bubbles website"
-            /> */}
+
             <div className="">
               <SignedIn>
-                <UserButton />
-                {/* Your profile  */}
+                <div className="hidden sm:flex items-center space-x-2 text-sm">
+                  {updateManager.status.realTime.isActive ? (
+                    <div className="flex items-center space-x-1 text-green-600">
+                      <Activity className="h-4 w-4" />
+                      <span>Live</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-1 text-gray-400">
+                      <Clock className="h-4 w-4" />
+                      <span>Offline</span>
+                    </div>
+                  )}
+                </div>
+                <UserButton
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-8 h-8"
+                    }
+                  }}
+                  afterSignOutUrl="/"
+                />
               </SignedIn>
             </div>
           </div>
