@@ -439,7 +439,7 @@ export class StockDataService {
   }
 
   /**
-   * Optimized method to update only real-time price data (faster for bulk updates)
+   * Update only real-time price data (for frequent updates every minute)
    */
   static async updateRealTimePriceOnly(symbol: string): Promise<StockCreationResult> {
     try {
@@ -471,9 +471,8 @@ export class StockDataService {
 
       const stockId = existingStock[0].id;
       
-      // Update only real-time price and basic intraday data
+      // Update ONLY real-time price data (no intraday table update)
       const realTimePriceData = await this.upsertRealTimePrice(stockId, quote);
-      const intraDayPriceData = await this.upsertIntraDayPrice(stockId, quote);
       
       // Update stock's last refreshed timestamp
       await db
@@ -487,8 +486,7 @@ export class StockDataService {
         message: `Successfully updated real-time price for ${symbol}`,
         data: { 
           stock: existingStock[0],
-          realTimePrice: realTimePriceData,
-          intraDayPrice: intraDayPriceData
+          realTimePrice: realTimePriceData
         }
       };
 
@@ -497,6 +495,69 @@ export class StockDataService {
       return {
         success: false,
         message: `Error updating real-time price: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  /**
+   * Update intraday price data for a specific stock (for market hours updates)
+   */
+  static async updateIntradayPriceOnly(symbol: string): Promise<StockCreationResult> {
+    try {
+      symbol = normalizeStockSymbol(symbol);
+      
+      // Only fetch quote data (no modules) for faster response
+      const quote = await YahooFinanceService.getQuote(symbol);
+      
+      if (!quote || !quote.regularMarketPrice) {
+        return {
+          success: false,
+          message: `Unable to fetch valid price data for symbol: ${symbol}`
+        };
+      }
+
+      // Find stock in database
+      const existingStock = await db
+        .select()
+        .from(stocks)
+        .where(eq(stocks.symbol, symbol))
+        .limit(1);
+
+      if (existingStock.length === 0) {
+        return {
+          success: false,
+          message: `Stock ${symbol} not found in database. Please add it first.`
+        };
+      }
+
+      const stockId = existingStock[0].id;
+      
+      // Update both real-time price and intraday data
+      const realTimePriceData = await this.upsertRealTimePrice(stockId, quote);
+      const intraDayPriceData = await this.upsertIntraDayPrice(stockId, quote);
+      
+      // Update stock's last refreshed timestamp
+      await db
+        .update(stocks)
+        .set({ lastRefreshedAt: new Date() })
+        .where(eq(stocks.id, stockId));
+
+      return {
+        success: true,
+        stockId,
+        message: `Successfully updated intraday data for ${symbol}`,
+        data: { 
+          stock: existingStock[0],
+          realTimePrice: realTimePriceData,
+          intraDayPrice: intraDayPriceData
+        }
+      };
+
+    } catch (error) {
+      console.error(`Error updating intraday data for ${symbol}:`, error);
+      return {
+        success: false,
+        message: `Error updating intraday data: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
@@ -566,7 +627,7 @@ export class StockDataService {
       let updatedCount = 0;
       const updatePromises = activeStocks.map(async (stock) => {
         try {
-          const result = await this.updateRealTimePriceOnly(stock.symbol);
+          const result = await this.updateIntradayPriceOnly(stock.symbol);
           if (result.success) {
             updatedCount++;
           }

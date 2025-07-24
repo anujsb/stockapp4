@@ -1,6 +1,9 @@
 // src/lib/services/yahooFinanceService.ts
 import yahooFinance from 'yahoo-finance2';
 
+// Suppress the survey notice
+yahooFinance.suppressNotices(['yahooSurvey']);
+
 export interface YahooQuoteData {
   symbol: string;
   longName?: string;
