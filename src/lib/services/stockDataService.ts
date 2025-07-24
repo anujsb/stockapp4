@@ -592,4 +592,376 @@ export class StockDataService {
       };
     }
   }
+
+  /**
+   * Update fundamental data for all active stocks (Monthly)
+   */
+  static async updateFundamentalDataForAll(): Promise<{ total: number; successful: number; failed: number; results: any[] }> {
+    try {
+      console.log('Starting fundamental data update for all stocks...');
+      
+      // Get all active stocks
+      const activeStocks = await db
+        .select()
+        .from(stocks)
+        .where(eq(stocks.isActive, true));
+
+      if (activeStocks.length === 0) {
+        return {
+          total: 0,
+          successful: 0,
+          failed: 0,
+          results: []
+        };
+      }
+
+      const results: { symbol: string; success: boolean; message: string }[] = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      // Process stocks in batches of 3 to avoid overwhelming the API
+      for (let i = 0; i < activeStocks.length; i += 3) {
+        const batch = activeStocks.slice(i, i + 3);
+        
+        const batchPromises = batch.map(async (stock) => {
+          try {
+            // Get comprehensive data including fundamental data
+            const { quote, modules } = await YahooFinanceService.getComprehensiveStockData(stock.symbol);
+            
+            if (!quote) {
+              throw new Error('No quote data received');
+            }
+
+            // Update fundamental data
+            await this.upsertFundamentalData(stock.id, quote);
+            
+            successCount++;
+            return {
+              symbol: stock.symbol,
+              success: true,
+              message: 'Fundamental data updated successfully'
+            };
+          } catch (error) {
+            failCount++;
+            console.error(`Failed to update fundamental data for ${stock.symbol}:`, error);
+            return {
+              symbol: stock.symbol,
+              success: false,
+              message: error instanceof Error ? error.message : 'Unknown error'
+            };
+          }
+        });
+
+        const batchResults = await Promise.allSettled(batchPromises);
+        batchResults.forEach(result => {
+          if (result.status === 'fulfilled') {
+            results.push(result.value);
+          } else {
+            results.push({
+              symbol: 'unknown',
+              success: false,
+              message: `Promise rejected: ${result.reason}`
+            });
+          }
+        });
+
+        // Add delay between batches
+        if (i + 3 < activeStocks.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      console.log(`Fundamental data update complete: ${successCount} successful, ${failCount} failed`);
+
+      return {
+        total: activeStocks.length,
+        successful: successCount,
+        failed: failCount,
+        results
+      };
+
+    } catch (error) {
+      console.error('Error updating fundamental data for all stocks:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update financial data for all active stocks (Monthly)
+   */
+  static async updateFinancialDataForAll(): Promise<{ total: number; successful: number; failed: number; results: any[] }> {
+    try {
+      console.log('Starting financial data update for all stocks...');
+      
+      // Get all active stocks
+      const activeStocks = await db
+        .select()
+        .from(stocks)
+        .where(eq(stocks.isActive, true));
+
+      if (activeStocks.length === 0) {
+        return {
+          total: 0,
+          successful: 0,
+          failed: 0,
+          results: []
+        };
+      }
+
+      const results: { symbol: string; success: boolean; message: string }[] = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      // Process stocks in batches of 3 to avoid overwhelming the API
+      for (let i = 0; i < activeStocks.length; i += 3) {
+        const batch = activeStocks.slice(i, i + 3);
+        
+        const batchPromises = batch.map(async (stock) => {
+          try {
+            // Get comprehensive data including financial data
+            const { quote, modules } = await YahooFinanceService.getComprehensiveStockData(stock.symbol);
+            
+            if (!modules?.financialData) {
+              throw new Error('No financial data received');
+            }
+
+            // Update financial data
+            await this.upsertFinancialData(stock.id, modules.financialData);
+            
+            successCount++;
+            return {
+              symbol: stock.symbol,
+              success: true,
+              message: 'Financial data updated successfully'
+            };
+          } catch (error) {
+            failCount++;
+            console.error(`Failed to update financial data for ${stock.symbol}:`, error);
+            return {
+              symbol: stock.symbol,
+              success: false,
+              message: error instanceof Error ? error.message : 'Unknown error'
+            };
+          }
+        });
+
+        const batchResults = await Promise.allSettled(batchPromises);
+        batchResults.forEach(result => {
+          if (result.status === 'fulfilled') {
+            results.push(result.value);
+          } else {
+            results.push({
+              symbol: 'unknown',
+              success: false,
+              message: `Promise rejected: ${result.reason}`
+            });
+          }
+        });
+
+        // Add delay between batches
+        if (i + 3 < activeStocks.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      console.log(`Financial data update complete: ${successCount} successful, ${failCount} failed`);
+
+      return {
+        total: activeStocks.length,
+        successful: successCount,
+        failed: failCount,
+        results
+      };
+
+    } catch (error) {
+      console.error('Error updating financial data for all stocks:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update statistics data for all active stocks (Monthly)
+   */
+  static async updateStatisticsDataForAll(): Promise<{ total: number; successful: number; failed: number; results: any[] }> {
+    try {
+      console.log('Starting statistics data update for all stocks...');
+      
+      // Get all active stocks
+      const activeStocks = await db
+        .select()
+        .from(stocks)
+        .where(eq(stocks.isActive, true));
+
+      if (activeStocks.length === 0) {
+        return {
+          total: 0,
+          successful: 0,
+          failed: 0,
+          results: []
+        };
+      }
+
+      const results: { symbol: string; success: boolean; message: string }[] = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      // Process stocks in batches of 3 to avoid overwhelming the API
+      for (let i = 0; i < activeStocks.length; i += 3) {
+        const batch = activeStocks.slice(i, i + 3);
+        
+        const batchPromises = batch.map(async (stock) => {
+          try {
+            // Get comprehensive data including statistics
+            const { quote, modules } = await YahooFinanceService.getComprehensiveStockData(stock.symbol);
+            
+            if (!modules || (!modules.defaultKeyStatistics && !modules.calendarEvents)) {
+              throw new Error('No statistics data received');
+            }
+
+            // Update statistics data
+            await this.upsertStatistics(stock.id, modules);
+            
+            successCount++;
+            return {
+              symbol: stock.symbol,
+              success: true,
+              message: 'Statistics data updated successfully'
+            };
+          } catch (error) {
+            failCount++;
+            console.error(`Failed to update statistics data for ${stock.symbol}:`, error);
+            return {
+              symbol: stock.symbol,
+              success: false,
+              message: error instanceof Error ? error.message : 'Unknown error'
+            };
+          }
+        });
+
+        const batchResults = await Promise.allSettled(batchPromises);
+        batchResults.forEach(result => {
+          if (result.status === 'fulfilled') {
+            results.push(result.value);
+          } else {
+            results.push({
+              symbol: 'unknown',
+              success: false,
+              message: `Promise rejected: ${result.reason}`
+            });
+          }
+        });
+
+        // Add delay between batches
+        if (i + 3 < activeStocks.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      console.log(`Statistics data update complete: ${successCount} successful, ${failCount} failed`);
+
+      return {
+        total: activeStocks.length,
+        successful: successCount,
+        failed: failCount,
+        results
+      };
+
+    } catch (error) {
+      console.error('Error updating statistics data for all stocks:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update analyst ratings for all active stocks (Monthly)
+   */
+  static async updateAnalystRatingsForAll(): Promise<{ total: number; successful: number; failed: number; results: any[] }> {
+    try {
+      console.log('Starting analyst ratings update for all stocks...');
+      
+      // Get all active stocks
+      const activeStocks = await db
+        .select()
+        .from(stocks)
+        .where(eq(stocks.isActive, true));
+
+      if (activeStocks.length === 0) {
+        return {
+          total: 0,
+          successful: 0,
+          failed: 0,
+          results: []
+        };
+      }
+
+      const results: { symbol: string; success: boolean; message: string }[] = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      // Process stocks in batches of 3 to avoid overwhelming the API
+      for (let i = 0; i < activeStocks.length; i += 3) {
+        const batch = activeStocks.slice(i, i + 3);
+        
+        const batchPromises = batch.map(async (stock) => {
+          try {
+            // Get comprehensive data including analyst ratings
+            const { quote, modules } = await YahooFinanceService.getComprehensiveStockData(stock.symbol);
+            
+            if (!modules?.financialData?.recommendationKey) {
+              throw new Error('No analyst rating data received');
+            }
+
+            // Update analyst ratings
+            await this.upsertAnalystRating(stock.id, modules.financialData);
+            
+            successCount++;
+            return {
+              symbol: stock.symbol,
+              success: true,
+              message: 'Analyst ratings updated successfully'
+            };
+          } catch (error) {
+            failCount++;
+            console.error(`Failed to update analyst ratings for ${stock.symbol}:`, error);
+            return {
+              symbol: stock.symbol,
+              success: false,
+              message: error instanceof Error ? error.message : 'Unknown error'
+            };
+          }
+        });
+
+        const batchResults = await Promise.allSettled(batchPromises);
+        batchResults.forEach(result => {
+          if (result.status === 'fulfilled') {
+            results.push(result.value);
+          } else {
+            results.push({
+              symbol: 'unknown',
+              success: false,
+              message: `Promise rejected: ${result.reason}`
+            });
+          }
+        });
+
+        // Add delay between batches
+        if (i + 3 < activeStocks.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      console.log(`Analyst ratings update complete: ${successCount} successful, ${failCount} failed`);
+
+      return {
+        total: activeStocks.length,
+        successful: successCount,
+        failed: failCount,
+        results
+      };
+
+    } catch (error) {
+      console.error('Error updating analyst ratings for all stocks:', error);
+      throw error;
+    }
+  }
 }
